@@ -62,6 +62,8 @@ function buildPageHtml(pageId, params){
 function renderPage(pageId, params){
   const html = buildPageHtml(pageId, params);
   if (html === null) return;
+  currentPageId = pageId;
+  currentParams = params;
 
   const stage = document.getElementById('stage');
   const wrap = document.getElementById('stage-wrap');
@@ -93,6 +95,23 @@ function renderPage(pageId, params){
     stage.srcdoc = html;
   }
 }
+
+let currentPageId = null, currentParams = null;
+// The scale/transform decision above is computed once from window.innerWidth at render time and
+// never revisited -- browser zoom changes that effective width without firing any event this shell
+// was listening for, so a page could end up stuck rendering against a stale scale factor (a real,
+// known source of severe rendering issues, not just a cosmetic mismatch). Re-running the same,
+// already-correct renderPage() on a debounced resize fixes it by fully recomputing rather than
+// trying to patch the transform in place. Debounced so a continuous zoom gesture settles once,
+// not on every intermediate tick.
+let resizeDebounce;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeDebounce);
+  resizeDebounce = setTimeout(() => {
+    if(currentPageId) renderPage(currentPageId, currentParams);
+  }, 250);
+});
+
 
 window.addEventListener('message', (e) => {
   const d = e.data;
